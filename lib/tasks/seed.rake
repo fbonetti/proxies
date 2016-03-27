@@ -21,29 +21,8 @@ namespace :seed do
     #   (IPAddr.new(start_ip)..IPAddr.new(end_ip))
     # end
 
-    queue = Queue.new
-
     (0..(2 ** 32 - 1)).step((2 ** 32 - 1) / 10000.0).each_cons(2) do |lower, upper|
-      queue << [lower.floor, upper.ceil]
+      SeedIpRange.perform_async(lower.floor, upper.ceil)
     end
-
-    threads = Array.new(100) do
-      Thread.new do
-        until queue.empty? do
-          lower, upper = queue.pop
-
-          puts "lower: #{lower}, upper: #{upper}"
-
-          ActiveRecord::Base.connection.execute("
-            INSERT INTO proxies (host, port, created_at, updated_at)
-            SELECT '0.0.0.0'::inet + i, 8080, NOW(), NOW()
-            FROM generate_series(#{lower}, #{upper}, 1) AS i
-            ON CONFLICT DO NOTHING;
-          ")
-        end
-      end
-    end
-
-    threads.each(&:join)
   end
 end
